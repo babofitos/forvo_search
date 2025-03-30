@@ -1,6 +1,6 @@
 from aqt import mw, gui_hooks
-from aqt.webview import AnkiWebView, AnkiWebPage
-from aqt.qt import QAction, QKeySequence, QUrl, QMainWindow, QWebEnginePage, QVBoxLayout, QWebEngineView, QByteArray, QMimeData
+from aqt.webview import AnkiWebView
+from aqt.qt import QAction, QKeySequence, QUrl, QWebEnginePage, QByteArray, QMimeData
 from aqt.utils import showWarning
 import os
 import base64
