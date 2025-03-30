@@ -1,6 +1,6 @@
 from aqt import mw, gui_hooks
 from aqt.webview import AnkiWebView
-from aqt.qt import QAction, QKeySequence, QUrl, QWebEnginePage, QByteArray, QMimeData
+from aqt.qt import QAction, QKeySequence, QUrl, QWebEnginePage, QByteArray, QMimeData, QShortcut
 from aqt.utils import showWarning
 import os
 import base64
@@ -12,6 +12,7 @@ addon_name = mw.addonManager.addonFromModule(__name__)
 class CustomView(AnkiWebView):
     def __init__(self):
         super().__init__()
+        add_shortcut_to_window(self)
         self.setWindowTitle("Forvo Search")
         self.config = mw.addonManager.getConfig(__name__)
         self.resize(self.config["width"], self.config["height"])
@@ -131,6 +132,7 @@ def forvo_search():
         mw.custom_view.prepare_view()
 
 def on_webview_will_set_content(web_content, context):
+    print(context)
     #this function fires on every AnkiWebView, so filter those out
     if not isinstance(context, CustomView): 
         return
@@ -139,10 +141,21 @@ def on_webview_will_set_content(web_content, context):
     web_content.css.append(f"/_addons/{addon_package}/web/style.css")
     web_content.js.append(f"/_addons/{addon_package}/web/script.js")
 
-mw.addonManager.setWebExports(__name__, r"web.*")
 shortcut = mw.addonManager.getConfig(__name__)["shortcut"]
+
+def add_shortcut_to_window(window):
+    qshortcut = QShortcut(QKeySequence(shortcut), window)
+    qshortcut.activated.connect(forvo_search)
+
+mw.addonManager.setWebExports(__name__, r"web.*")
+
 gui_hooks.webview_will_set_content.append(on_webview_will_set_content)
+
 action = QAction("Forvo Search", mw)
 action.setShortcut(QKeySequence(shortcut))
+mw.addAction(action)
 action.triggered.connect(forvo_search)
 mw.form.menuTools.addAction(action)
+
+gui_hooks.browser_will_show.append(add_shortcut_to_window)
+gui_hooks.previewer_did_init.append(add_shortcut_to_window)
