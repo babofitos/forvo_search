@@ -1,0 +1,22 @@
+.row {
+    display: grid;
+    grid-template-columns: 2fr 2fr;
+}
+
+.author {
+    display: flex;
+    align-items: center;
+}
+
+.play {
+    width: 24px;
+}
+
+.copy {
+    width: 24px;
+}
+
+.buttons {
+    display: flex;
+    justify-content: flex-end;
+}
