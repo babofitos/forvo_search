@@ -35,8 +35,11 @@ class CustomView(AnkiWebView):
         self.evalWithCallback(f'createRow({data});', lambda val: self.activateWindow())
 
     def bridge_command(self, url):
+        print(url)
         #when the copy button is clicked in webview, we receive the url here of the corresponding row
-
+        #url - [i, url], i is the index the row that copy was clicked from
+        row, url = json.loads(url)
+        
         #headers to prevent anti-scraping detection
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
@@ -67,6 +70,9 @@ class CustomView(AnkiWebView):
             #set the MIME data to the clipboard
             mw.app.clipboard().setMimeData(mime_data)
             print(f"MP3 from {url} copied to clipboard!")
+
+            #update webview with success
+            self.eval(f"downloadSuccess({row})")
         else:
             showWarning(f"Failed to download MP3. Status code: {response.status_code}")
 

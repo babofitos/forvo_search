@@ -20,3 +20,7 @@
     display: flex;
     justify-content: flex-end;
 }
+
+.copy-message {
+    display: none;
+}

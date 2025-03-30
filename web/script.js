@@ -20,8 +20,22 @@ function createRow(data) {
         });
         const copyButton = row.querySelector('.copy');
         copyButton.addEventListener('click', function() {
-            pycmd(url)
+            pycmd(JSON.stringify([i, url]))
+            copyButton.disabled = true;
         })
         container.appendChild(row);
     })
+}
+
+function downloadSuccess(i) {
+    const rowIndex = i;
+    const row = document.querySelectorAll('.row')[rowIndex];
+    //disable button for one second minimum since it barely gets disabled normally
+    setTimeout(() => {
+        row.querySelector('.copy').disabled = false;
+    }, 1000);
+    row.querySelector('.copy-message').style.display = 'inline';
+    setTimeout(() => {
+        row.querySelector('.copy-message').style.display = 'none';
+    }, 3000);
 }
