@@ -6,4 +6,6 @@ Pressing the shortcut defined in config.json will search Forvo for the word curr
 
 When the copy button is pressed, it will download the audio file to your current Anki profile's media folder and copy the audio file to your clipboard for easy pasting.
 
+Currently only supports Japanese.
+
 This add-on was made to become familiar with the Anki add-on development process.
