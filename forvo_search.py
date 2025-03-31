@@ -1,6 +1,6 @@
 from aqt import mw, gui_hooks
 from aqt.webview import AnkiWebView
-from aqt.qt import QAction, QKeySequence, QUrl, QWebEnginePage, QByteArray, QMimeData, QShortcut
+from aqt.qt import QAction, QKeySequence, QUrl, QWebEnginePage, QByteArray, QMimeData, QShortcut, pyqtSignal
 from aqt.utils import showWarning
 import os
 import base64
@@ -10,15 +10,21 @@ import platform
 addon_name = mw.addonManager.addonFromModule(__name__)
 
 class CustomView(AnkiWebView):
+    window_closed = pyqtSignal()
+
     def __init__(self):
         super().__init__()
-        add_shortcut_to_window(self)
         self.setWindowTitle("Forvo Search")
         self.config = mw.addonManager.getConfig(__name__)
         self.resize(self.config["width"], self.config["height"])
         self.set_open_links_externally(False)
         self.set_bridge_command(self.bridge_command, self)
+        add_shortcut_to_window(self)
         self.body = open_file('web', 'index.html')
+        mw.forvo_page.word_changed.connect(self.update_word_in_ui)
+        mw.forvo_page.pronunciations_ready.connect(self.create_pronunciation_rows)
+        mw.forvo_page.no_page_found.connect(self.handle_no_page)
+        mw.forvo_page.no_pronunciations_found.connect(self.handle_no_pronunciations)
 
     #save the window's size to config when it is resized
     def resizeEvent(self, event):
@@ -28,30 +34,38 @@ class CustomView(AnkiWebView):
         super().resizeEvent(event)
 
     def closeEvent(self, event):
-        #if a word is searched and then the window is closed, the word won't be searched again if the window is re-opened
-        #so reset word
-        mw.forvo_page.word = ""
+        #if a word is searched and then the window is closed, the word won't be searched again if the window is re-opened, so reset word
+        mw.forvo_page.reset_word()
         super().closeEvent(event)
 
-    def prepare_view(self):
+    def handle_no_page(self):
+        self.eval("pageNotFound();")
+        
+    def handle_no_pronunciations(self):
+        self.eval("noPronunciationsFound();")
+
+    def open_empty_window(self):
+        #view shown when window is not already open
         if self.isVisible():
             return
         
+        self.prepare_view()
+        self.show()
+        self.activateWindow()
+
+    def prepare_view(self):    
         #stdHtml will call gui_hooks.webview_will_set_content and append the css and js in the html
         self.stdHtml(self.body, None, None, "", self)
-        self.show()
-
-    def fetching_view(self):
+        
+    
+    def update_word_in_ui(self, word):
+        self.activateWindow()
         self.stdHtml(self.body, None, None, "", self)
-        #get current word and assign it to input text's value and show fetching message
-        word = mw.forvo_page.word
         self.evalWithCallback(f'fillWordInInput("{word}");showFetchForvoMessage("{word}");', lambda _: self.show())
-    
-    
 
     def create_pronunciation_rows(self, data):
         #invoke function in web/script.js that we appended into the html in the hook
-        self.evalWithCallback(f'createRow({data});', lambda val: self.activateWindow())
+        self.eval(f'createRow({data});')
 
     def bridge_command(self, pycmd_msg):
         """
@@ -107,24 +121,32 @@ class CustomView(AnkiWebView):
                 showWarning(f"Failed to download MP3. Status code: {response.status_code}")
 
 class ForvoPage(QWebEnginePage):
+    pronunciations_ready = pyqtSignal(list)
+    no_page_found = pyqtSignal()
+    no_pronunciations_found = pyqtSignal()
+    word_changed = pyqtSignal(str)
+
     def __init__(self, *args):
         super().__init__()
         self.link_extractor_js = open_file('', 'linkExtractor.js')
         self.word = ""
+        # mw.custom_view.window_closed.connect(self.reset_word)
     
+    def reset_word(self):
+        self.word = ""
+
     def search(self, word):
         #don't need to search if current word already being shown
         if word == self.word:
             return
         
         self.word = word
+
+        self.word_changed.emit(word)
+
         self.pronunciations = []
         self.load(QUrl(f"https://ja.forvo.com/word/{word}/#ja"))
         self.loadFinished.connect(self.get_audio_links)
-        #keep using existing window if it's already open
-        if not hasattr(mw, "custom_view"):
-            mw.custom_view = CustomView()
-        mw.custom_view.fetching_view()
 
     def search_from_clipboard(self):
         clipboard = mw.app.clipboard()
@@ -136,8 +158,7 @@ class ForvoPage(QWebEnginePage):
     def get_audio_links(self, success):
         self.loadFinished.disconnect(self.get_audio_links)
         if not success:
-            mw.custom_view.eval('pageNotFound();')
-            mw.custom_view.activateWindow()
+            self.no_page_found.emit()
         else:
             lang = mw.addonManager.getConfig(__name__)["lang"]
             #need to include the double quotes around the lang because the fn expects a string
@@ -150,8 +171,7 @@ class ForvoPage(QWebEnginePage):
         #we return an empty array if we didn't find any pronunciations to scrape
         arr = json.loads(links)
         if len(arr) == 0:
-            mw.custom_view.eval('noPronunciationsFound();')
-            mw.custom_view.activateWindow()
+            self.no_pronunciations_found.emit()
             return
         
         self.pronunciations = []
@@ -162,7 +182,7 @@ class ForvoPage(QWebEnginePage):
             url = base_url + base64.b64decode(file_name).decode('utf-8')
             self.pronunciations.append([author, url])
 
-        mw.custom_view.create_pronunciation_rows(self.pronunciations)
+        self.pronunciations_ready.emit(self.pronunciations)
 
 def open_file(folder, filename):
     path = os.path.join(mw.addonManager.addonsFolder(), addon_name, folder, filename)
@@ -178,13 +198,15 @@ def on_webview_will_set_content(web_content, context):
     web_content.css.append(f"/_addons/{addon_package}/web/style.css")
     web_content.js.append(f"/_addons/{addon_package}/web/script.js")
 
-mw.forvo_page = ForvoPage()
+
 
 shortcut = mw.addonManager.getConfig(__name__)["shortcut"]
 
 def add_shortcut_to_window(window):
     qshortcut = QShortcut(QKeySequence(shortcut), window)
     qshortcut.activated.connect(mw.forvo_page.search_from_clipboard)
+
+mw.forvo_page = ForvoPage()
 
 mw.addonManager.setWebExports(__name__, r"web.*")
 
@@ -199,7 +221,7 @@ fetch_action.triggered.connect(mw.forvo_page.search_from_clipboard)
 
 open_action = QAction("Open Forvo Search", mw)
 mw.addAction(open_action)
-open_action.triggered.connect(mw.custom_view.prepare_view)
+open_action.triggered.connect(mw.custom_view.open_empty_window)
 mw.form.menuTools.addAction(open_action)
 
 gui_hooks.browser_will_show.append(add_shortcut_to_window)
