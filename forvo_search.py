@@ -91,7 +91,10 @@ class ForvoPage(QWebEnginePage):
             mw.custom_view.stdHtml("Page not found")
             mw.custom_view.activateWindow()
         else:
-            self.runJavaScript(self.link_extractor_js, self.decode_links)
+            lang = mw.addonManager.getConfig(__name__)["lang"]
+            #need to include the double quotes around the lang because the fn expects a string
+            #effectively getUrls("ja")
+            self.runJavaScript(self.link_extractor_js + '("' + f"{lang}" + '")', self.decode_links)
 
     def decode_links(self, links):
         #links is a JSON.stringify'd array of arrays with a base url and base64 encoded string

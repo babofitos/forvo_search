@@ -1,5 +1,5 @@
-(function() {
-    const list = document.querySelector('#pronunciations-list-ja')
+(function getUrls(lang) {
+    const list = document.querySelector(`#pronunciations-list-${lang}`)
     //word has no pronunciations if list doesn't exist
     if (!list) return JSON.stringify([]);
     //turn nodelist into array so we can map
@@ -22,4 +22,4 @@
         return onClickValues[4] !== "''" ? ['https://audio12.forvo.com/audios/mp3/', onClickValues[4], author] : ['https://audio12.forvo.com/mp3/', onClickValues[1], author];
     });
     return JSON.stringify(urls);
-}())
+})
