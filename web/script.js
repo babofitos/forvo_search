@@ -1,5 +1,5 @@
 function createRow(data) {
-    document.querySelector('#fetching-msg').style.display = 'none';
+    document.querySelector('#msg').style.display = 'none';
     const template = document.getElementById('pronunciation-template');
     const container = document.getElementById('pronunciations-container');
 
@@ -20,11 +20,38 @@ function createRow(data) {
         });
         const copyButton = row.querySelector('.copy');
         copyButton.addEventListener('click', function() {
-            pycmd(JSON.stringify([i, url]))
+            const res = {
+                type: 'copy',
+                val: [i, url]
+            };
+
+            pycmd(JSON.stringify(res));
             copyButton.disabled = true;
         })
         container.appendChild(row);
     })
+}
+
+function searchWord() {
+    const word = document.querySelector('#search-box').value;
+    const res = {
+        type: 'search',
+        val: word
+    };
+
+    pycmd(JSON.stringify(res));
+}
+
+function pageNotFound() {
+    document.querySelector('#msg').innerText = 'Page not found';
+}
+
+function noPronunciationsFound() {
+    document.querySelector('#msg').innerText = 'No pronunciations found';
+}
+
+function fillWordInInput(word) {
+    document.querySelector('#search-box').value = word;
 }
 
 function downloadSuccess(i) {
@@ -39,3 +66,13 @@ function downloadSuccess(i) {
         row.querySelector('.copy-message').style.display = 'none';
     }, 3000);
 }
+
+document.addEventListener("DOMContentLoaded", function() {
+    document.querySelector('#search-button').addEventListener('click', function() {
+        searchWord();
+    });
+
+    document.querySelector('#search-form').addEventListener('submit', function(ev) {
+        ev.preventDefault();
+    });
+});

@@ -20,9 +20,13 @@ class CustomView(AnkiWebView):
         self.set_bridge_command(self.bridge_command, self)
 
     def prepare_view(self):
+        #show Fetching Forvo Data... message in window
         body = open_file('web', 'index.html')
+        #stdHtml will call gui_hooks.webview_will_set_content and append the css and js in the html
         self.stdHtml(body, None, None, "", self)
-        self.show()
+        #get current word and assign it to input text's value
+        word = mw.forvo_page.word
+        self.evalWithCallback(f'fillWordInInput("{word}")', lambda _: self.show())
     
     #save the window's size to config when it is resized
     def resizeEvent(self, event):
@@ -35,60 +39,90 @@ class CustomView(AnkiWebView):
         #invoke function in web/script.js that we appended into the html in the hook
         self.evalWithCallback(f'createRow({data});', lambda val: self.activateWindow())
 
-    def bridge_command(self, url):
-        print(url)
-        #when the copy button is clicked in webview, we receive the url here of the corresponding row
-        #url - [i, url], i is the index the row that copy was clicked from
-        row, url = json.loads(url)
+    def bridge_command(self, pycmd_msg):
+        """
+        pycmd_msg is a stringified JSON object
+        {   type: '[search|copy]',
+            val: "word"|[index, "url"]
+        }   
+        """
+        pycmd_msg = json.loads(pycmd_msg)
+
+        if (pycmd_msg["type"] == 'search'):
+            mw.forvo_page.search(pycmd_msg["val"])
+
+        elif (pycmd_msg["type"] == 'copy'):
+            #when the copy button is clicked in webview, we receive the url here of the corresponding row
+            #url - [i, url], i is the index the row that copy was clicked from
+            row, url = pycmd_msg["val"]
+            
+            #headers to prevent anti-scraping detection
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+            }
+            response = requests.get(url, headers=headers)
         
-        #headers to prevent anti-scraping detection
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-        }
-        response = requests.get(url, headers=headers)
-    
-        if response.status_code == 200:
-            media_folder = mw.col.media.dir()
-            file_name = url.split('/')[-1]
-            file_path = os.path.join(media_folder, file_name)
-            with open(file_path, 'wb') as file:
-                file.write(response.content)
+            if response.status_code == 200:
+                media_folder = mw.col.media.dir()
+                file_name = url.split('/')[-1]
+                file_path = os.path.join(media_folder, file_name)
+                with open(file_path, 'wb') as file:
+                    file.write(response.content)
 
-            mime_data = QMimeData()
+                mime_data = QMimeData()
 
-            #filepath uri differs between windows and unix
-            file_uri_base = "file:///"
-            if platform.system() != 'Windows':
-                file_uri_base = "file://"
-            file_uri = file_uri_base + file_path
+                #filepath uri differs between windows and unix
+                file_uri_base = "file:///"
+                if platform.system() != 'Windows':
+                    file_uri_base = "file://"
+                file_uri = file_uri_base + file_path
 
-            mime_data.setData("text/uri-list", QByteArray(file_uri.encode()))
+                mime_data.setData("text/uri-list", QByteArray(file_uri.encode()))
 
-            #set the MIME data to the clipboard
-            mw.app.clipboard().setMimeData(mime_data)
-            print(f"MP3 from {url} copied to clipboard!")
+                #set the MIME data to the clipboard
+                mw.app.clipboard().setMimeData(mime_data)
+                print(f"MP3 from {url} copied to clipboard!")
 
-            #update webview with success
-            self.eval(f"downloadSuccess({row})")
-        else:
-            showWarning(f"Failed to download MP3. Status code: {response.status_code}")
+                #update webview with success
+                self.eval(f"downloadSuccess({row})")
+            else:
+                showWarning(f"Failed to download MP3. Status code: {response.status_code}")
 
 class ForvoPage(QWebEnginePage):
-    def __init__(self, word, *args):
+    def __init__(self, *args):
         super().__init__()
-        # self.set_open_links_externally(False)
         self.link_extractor_js = open_file('', 'linkExtractor.js')
+        self.word = None
+    
+    def search(self, word):
+        #don't need to search if current word already being shown
+        if word == self.word:
+            return
+        
+        self.word = word
         self.pronunciations = []
         self.load(QUrl(f"https://ja.forvo.com/word/{word}/#ja"))
-        self.connection = self.loadFinished.connect(self.get_audio_links)
+        self.loadFinished.connect(self.get_audio_links)
+        #keep using existing window if it's already open
+        if not hasattr(mw, "custom_view"):
+            mw.custom_view = CustomView()
+        mw.custom_view.prepare_view()
+
+    def search_from_clipboard(self):
+        clipboard = mw.app.clipboard()
+        word = clipboard.text().strip()
+        #prevent accidental searches with long text
+        if word and len(word) < 30:
+            self.search(word)
 
     def get_audio_links(self, success):
+        self.loadFinished.disconnect(self.get_audio_links)
         if not success:
-            mw.custom_view.stdHtml("Page not found")
+            mw.custom_view.eval('pageNotFound();')
             mw.custom_view.activateWindow()
         else:
             lang = mw.addonManager.getConfig(__name__)["lang"]
@@ -102,7 +136,7 @@ class ForvoPage(QWebEnginePage):
         #we return an empty array if we didn't find any pronunciations to scrape
         arr = json.loads(links)
         if len(arr) == 0:
-            mw.custom_view.stdHtml('No pronunciations found')
+            mw.custom_view.eval('noPronunciationsFound();')
             mw.custom_view.activateWindow()
             return
         
@@ -114,8 +148,6 @@ class ForvoPage(QWebEnginePage):
             url = base_url + base64.b64decode(file_name).decode('utf-8')
             self.pronunciations.append([author, url])
 
-        self.loadFinished.disconnect(self.connection)
-        del mw.forvo_page
         mw.custom_view.create_pronunciation_rows(self.pronunciations)
 
 def open_file(folder, filename):
@@ -123,19 +155,7 @@ def open_file(folder, filename):
     with open(path, 'r') as script:
         return script.read()
 
-def forvo_search():
-    clipboard = mw.app.clipboard()
-    word = clipboard.text().strip()
-    #prevent accidental searches with long text
-    if word and len(word) < 30:
-        mw.forvo_page = ForvoPage(word)
-        #keep using existing window if it's already open
-        if not hasattr(mw, "custom_view"):
-            mw.custom_view = CustomView()
-        mw.custom_view.prepare_view()
-
 def on_webview_will_set_content(web_content, context):
-    print(context)
     #this function fires on every AnkiWebView, so filter those out
     if not isinstance(context, CustomView): 
         return
@@ -144,11 +164,13 @@ def on_webview_will_set_content(web_content, context):
     web_content.css.append(f"/_addons/{addon_package}/web/style.css")
     web_content.js.append(f"/_addons/{addon_package}/web/script.js")
 
+mw.forvo_page = ForvoPage()
+
 shortcut = mw.addonManager.getConfig(__name__)["shortcut"]
 
 def add_shortcut_to_window(window):
     qshortcut = QShortcut(QKeySequence(shortcut), window)
-    qshortcut.activated.connect(forvo_search)
+    qshortcut.activated.connect(mw.forvo_page.search_from_clipboard)
 
 mw.addonManager.setWebExports(__name__, r"web.*")
 
@@ -157,7 +179,7 @@ gui_hooks.webview_will_set_content.append(on_webview_will_set_content)
 action = QAction("Forvo Search", mw)
 action.setShortcut(QKeySequence(shortcut))
 mw.addAction(action)
-action.triggered.connect(forvo_search)
+action.triggered.connect(mw.forvo_page.search_from_clipboard)
 mw.form.menuTools.addAction(action)
 
 gui_hooks.browser_will_show.append(add_shortcut_to_window)
