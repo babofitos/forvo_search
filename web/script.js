@@ -50,6 +50,10 @@ function noPronunciationsFound() {
     document.querySelector('#msg').innerText = 'No pronunciations found';
 }
 
+function showFetchForvoMessage() {
+    document.querySelector('#msg').innerText = 'Fetching Forvo Data...';
+}
+
 function fillWordInInput(word) {
     document.querySelector('#search-box').value = word;
 }

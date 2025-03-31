@@ -18,22 +18,36 @@ class CustomView(AnkiWebView):
         self.resize(self.config["width"], self.config["height"])
         self.set_open_links_externally(False)
         self.set_bridge_command(self.bridge_command, self)
+        self.body = open_file('web', 'index.html')
 
-    def prepare_view(self):
-        #show Fetching Forvo Data... message in window
-        body = open_file('web', 'index.html')
-        #stdHtml will call gui_hooks.webview_will_set_content and append the css and js in the html
-        self.stdHtml(body, None, None, "", self)
-        #get current word and assign it to input text's value
-        word = mw.forvo_page.word
-        self.evalWithCallback(f'fillWordInInput("{word}")', lambda _: self.show())
-    
     #save the window's size to config when it is resized
     def resizeEvent(self, event):
         self.config["width"] = self.width()
         self.config["height"] = self.height()
         mw.addonManager.writeConfig(__name__, self.config)
         super().resizeEvent(event)
+
+    def closeEvent(self, event):
+        #if a word is searched and then the window is closed, the word won't be searched again if the window is re-opened
+        #so reset word
+        mw.forvo_page.word = ""
+        super().closeEvent(event)
+
+    def prepare_view(self):
+        if self.isVisible():
+            return
+        
+        #stdHtml will call gui_hooks.webview_will_set_content and append the css and js in the html
+        self.stdHtml(self.body, None, None, "", self)
+        self.show()
+
+    def fetching_view(self):
+        self.stdHtml(self.body, None, None, "", self)
+        #get current word and assign it to input text's value and show fetching message
+        word = mw.forvo_page.word
+        self.evalWithCallback(f'fillWordInInput("{word}");showFetchForvoMessage("{word}");', lambda _: self.show())
+    
+    
 
     def create_pronunciation_rows(self, data):
         #invoke function in web/script.js that we appended into the html in the hook
@@ -96,7 +110,7 @@ class ForvoPage(QWebEnginePage):
     def __init__(self, *args):
         super().__init__()
         self.link_extractor_js = open_file('', 'linkExtractor.js')
-        self.word = None
+        self.word = ""
     
     def search(self, word):
         #don't need to search if current word already being shown
@@ -110,7 +124,7 @@ class ForvoPage(QWebEnginePage):
         #keep using existing window if it's already open
         if not hasattr(mw, "custom_view"):
             mw.custom_view = CustomView()
-        mw.custom_view.prepare_view()
+        mw.custom_view.fetching_view()
 
     def search_from_clipboard(self):
         clipboard = mw.app.clipboard()
@@ -176,11 +190,17 @@ mw.addonManager.setWebExports(__name__, r"web.*")
 
 gui_hooks.webview_will_set_content.append(on_webview_will_set_content)
 
-action = QAction("Forvo Search", mw)
-action.setShortcut(QKeySequence(shortcut))
-mw.addAction(action)
-action.triggered.connect(mw.forvo_page.search_from_clipboard)
-mw.form.menuTools.addAction(action)
+mw.custom_view = CustomView()
+
+fetch_action = QAction("Fetch Forvo Search", mw)
+fetch_action.setShortcut(QKeySequence(shortcut))
+mw.addAction(fetch_action)
+fetch_action.triggered.connect(mw.forvo_page.search_from_clipboard)
+
+open_action = QAction("Open Forvo Search", mw)
+mw.addAction(open_action)
+open_action.triggered.connect(mw.custom_view.prepare_view)
+mw.form.menuTools.addAction(open_action)
 
 gui_hooks.browser_will_show.append(add_shortcut_to_window)
 gui_hooks.previewer_did_init.append(add_shortcut_to_window)
