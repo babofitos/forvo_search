@@ -2,7 +2,7 @@
 
 An Anki add-on for downloading Forvo audio files and copying them to your clipboard.
 
-Pressing the shortcut defined in `config.json` will search Forvo for the word currently in your clipboard.
+Pressing the shortcut defined in `config.json` will search Forvo for the word currently in your clipboard. You can alternatively search using the search bar in the window.
 
 When the copy button is pressed, it will download the audio file to your current Anki profile's media folder and copy the audio file to your clipboard for easy pasting.
 
