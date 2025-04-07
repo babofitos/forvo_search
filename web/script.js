@@ -1,4 +1,5 @@
 function createRow(data) {
+    //data is [author, url, votes]
     document.querySelector('#msg').style.display = 'none';
     const template = document.getElementById('pronunciation-template');
     const container = document.getElementById('pronunciations-container');
@@ -6,10 +7,14 @@ function createRow(data) {
     data.forEach((pronunciation, i) => {
         const author = pronunciation[0];
         const url = pronunciation[1];
+        const votes = pronunciation[2];
         const row = template.content.cloneNode(true);
         
         row.querySelector('.author').textContent = author;
+        row.querySelector('.votes').textContent = `Votes: ${votes}`;
+
         const playButton = row.querySelector('.play');
+
         playButton.addEventListener('click', function() {
             playButton.disabled = true;
             const audio = new Audio(url);
@@ -18,7 +23,9 @@ function createRow(data) {
                 playButton.disabled = false;
             });
         });
+
         const copyButton = row.querySelector('.copy');
+
         copyButton.addEventListener('click', function() {
             const res = {
                 type: 'copy',

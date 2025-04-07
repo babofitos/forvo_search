@@ -1,11 +1,12 @@
 <form id="search-form">
-    <input type="text" id="search-box" placeholder="Search...">
+    <input type="search" id="search-box" placeholder="Search...">
     <button id="search-button">Search</button>
 </form>
 <div id='msg'></div>
 <template id="pronunciation-template">
     <div class="row">
         <span class="author"></span>
+        <span class="votes"></span>
         <span class="buttons">
             <span class="copy-message">
                 Copied!
@@ -13,7 +14,7 @@
                     <path d="M10.5858 13.4142L7.75735 10.5858L6.34314 12L10.5858 16.2427L17.6568 9.1716L16.2426 7.75739L10.5858 13.4142Z" fill="green"/>
                 </svg>
             </span>
-            <button class="copy">
+            <button title="Save file and copy to clipboard" class="copy">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M13 7H7V5H13V7Z" fill="currentColor"/><path d="M13 11H7V9H13V11Z" fill="currentColor"/><path d="M7 15H13V13H7V15Z" fill="currentColor"/>
                     <path fill-rule="evenodd" clip-rule="evenodd" d="M3 19V1H17V5H21V23H7V19H3ZM15 17V3H5V17H15ZM17 7V19H9V21H19V7H17Z" fill="currentColor"/>

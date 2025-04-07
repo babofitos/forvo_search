@@ -10,7 +10,6 @@ import platform
 addon_name = mw.addonManager.addonFromModule(__name__)
 
 class CustomView(AnkiWebView):
-    window_closed = pyqtSignal()
 
     def __init__(self):
         super().__init__()
@@ -54,7 +53,10 @@ class CustomView(AnkiWebView):
         self.activateWindow()
 
     def prepare_view(self):    
-        #stdHtml will call gui_hooks.webview_will_set_content and append the css and js in the html
+        """
+        stdHtml will call gui_hooks.webview_will_set_content and append the css and js in the html.
+        Because we pass None for the css param, Anki will inject its default css initially
+        """
         self.stdHtml(self.body, None, None, "", self)
         
     
@@ -130,7 +132,6 @@ class ForvoPage(QWebEnginePage):
         super().__init__()
         self.link_extractor_js = open_file('', 'linkExtractor.js')
         self.word = ""
-        # mw.custom_view.window_closed.connect(self.reset_word)
     
     def reset_word(self):
         self.word = ""
@@ -167,7 +168,7 @@ class ForvoPage(QWebEnginePage):
 
     def decode_links(self, links):
         #links is a JSON.stringify'd array of arrays with a base url and base64 encoded string
-        #[["https://audio12.forvo.com/audios/mp3/","'YS9rL2FrXzkxMTAxMjdfNzZfMTMyOTc5MF8xLm1wMw=='", "author"],...]
+        #[["https://audio12.forvo.com/audios/mp3/","'YS9rL2FrXzkxMTAxMjdfNzZfMTMyOTc5MF8xLm1wMw=='", "author", "votes"],...]
         #we return an empty array if we didn't find any pronunciations to scrape
         arr = json.loads(links)
         if len(arr) == 0:
@@ -179,8 +180,9 @@ class ForvoPage(QWebEnginePage):
             base_url = i[0]
             file_name = i[1]
             author = i[2]
+            votes = i[3]
             url = base_url + base64.b64decode(file_name).decode('utf-8')
-            self.pronunciations.append([author, url])
+            self.pronunciations.append([author, url, votes])
 
         self.pronunciations_ready.emit(self.pronunciations)
 

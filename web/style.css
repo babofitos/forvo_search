@@ -1,6 +1,6 @@
 .row {
     display: grid;
-    grid-template-columns: 2fr 2fr;
+    grid-template-columns: 2fr 1fr 2fr;
 }
 
 .author {
@@ -23,4 +23,9 @@
 
 .copy-message {
     display: none;
+}
+
+.votes {
+    display: flex;
+    align-items: center;
 }
