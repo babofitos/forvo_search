@@ -167,6 +167,9 @@ class ForvoPage(QWebEnginePage):
             #need to include the double quotes around the lang because the fn expects a string
             #effectively getUrls("ja")
             self.runJavaScript(self.link_extractor_js + '("' + f"{lang}" + '")', self.decode_links)
+        
+        #no longer need to be connected to Forvo, so simulate a disconnect by loading a blank page
+        self.load(QUrl("about:blank"))
 
     def decode_links(self, links):
         #links is a JSON.stringify'd array of arrays with a base url and base64 encoded string
@@ -187,9 +190,6 @@ class ForvoPage(QWebEnginePage):
             self.pronunciations.append([author, url, votes])
 
         self.pronunciations_ready.emit(self.pronunciations)
-
-        #no longer need to be connected to Forvo, so simulate a disconnect by loading a blank page
-        self.load(QUrl("about:blank"))
 
 def open_file(folder, filename):
     path = os.path.join(mw.addonManager.addonsFolder(), addon_name, folder, filename)
