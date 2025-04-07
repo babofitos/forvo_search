@@ -46,6 +46,9 @@ function searchWord() {
         val: word
     };
 
+    //we shouldn't search a blank search field
+    if (!word) return;
+
     pycmd(JSON.stringify(res));
 }
 
