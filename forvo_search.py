@@ -157,7 +157,9 @@ class ForvoPage(QWebEnginePage):
             self.search(word)
 
     def get_audio_links(self, success):
+        #disconnect the signal or subsequent searches will double function call each time
         self.loadFinished.disconnect(self.get_audio_links)
+
         if not success:
             self.no_page_found.emit()
         else:
@@ -185,6 +187,9 @@ class ForvoPage(QWebEnginePage):
             self.pronunciations.append([author, url, votes])
 
         self.pronunciations_ready.emit(self.pronunciations)
+
+        #no longer need to be connected to Forvo, so simulate a disconnect by loading a blank page
+        self.load(QUrl("about:blank"))
 
 def open_file(folder, filename):
     path = os.path.join(mw.addonManager.addonsFolder(), addon_name, folder, filename)
