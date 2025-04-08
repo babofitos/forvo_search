@@ -1,4 +1,5 @@
 # Forvo Search
+<img src="./demo.gif" width="50%" />
 
 An Anki add-on for downloading Forvo audio files and copying them to your clipboard.
 
