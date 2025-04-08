@@ -55,9 +55,9 @@ class CustomView(AnkiWebView):
     def prepare_view(self):    
         """
         stdHtml will call gui_hooks.webview_will_set_content and append the css and js in the html.
-        Because we pass None for the css param, Anki will inject its default css initially
+        Anki will inject its default css initially because the last arg is True
         """
-        self.stdHtml(self.body, None, None, "", self)
+        self.stdHtml(self.body, None, None, "", self, True)
         
     
     def update_word_in_ui(self, word):
