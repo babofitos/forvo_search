@@ -210,6 +210,7 @@ def on_webview_will_set_content(web_content, context):
 shortcut = mw.addonManager.getConfig(__name__)["shortcut"]
 
 def add_shortcut_to_window(window):
+    print('window', type(window))
     qshortcut = QShortcut(QKeySequence(shortcut), window)
     qshortcut.activated.connect(mw.forvo_page.search_from_clipboard)
 
@@ -231,5 +232,6 @@ mw.addAction(open_action)
 open_action.triggered.connect(mw.custom_view.open_empty_window)
 mw.form.menuTools.addAction(open_action)
 
-gui_hooks.browser_will_show.append(add_shortcut_to_window)
+#fires on browser (not deck browser) as well
+gui_hooks.editor_web_view_did_init.append(add_shortcut_to_window)
 gui_hooks.previewer_did_init.append(add_shortcut_to_window)
