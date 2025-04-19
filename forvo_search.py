@@ -1,5 +1,5 @@
 from aqt import mw, gui_hooks
-from aqt.webview import AnkiWebView
+from aqt.webview import AnkiWebView, AnkiWebViewKind
 from aqt.qt import QAction, QKeySequence, QUrl, QWebEnginePage, QByteArray, QMimeData, QShortcut, pyqtSignal
 from aqt.utils import showWarning
 import os
@@ -10,9 +10,8 @@ import platform
 addon_name = mw.addonManager.addonFromModule(__name__)
 
 class CustomView(AnkiWebView):
-
     def __init__(self):
-        super().__init__()
+        super().__init__(parent=None, kind=AnkiWebViewKind.MAIN)
         self.setWindowTitle("Forvo Search")
         self.config = mw.addonManager.getConfig(__name__)
         self.resize(self.config["width"], self.config["height"])
